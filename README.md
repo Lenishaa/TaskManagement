@@ -192,16 +192,3 @@ socket.on('task:created', (msg) => console.log(msg.task));
  - No input validation yet (add before production)
  - CORS allows all origins (`*`) - restrict in production
 
----
-
-## Next Steps (Optional)
-
-- Add email verification
-- Implement task categories/tags
-- Add due dates & reminders
-- Database: PostgreSQL/MongoDB
-- Deploy to Heroku/Vercel
-- Add unit tests
-- Input validation & sanitization
-- Rate limiting for auth endpoints
-
