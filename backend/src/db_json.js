@@ -20,9 +20,11 @@ async function connectMongo() {
       minPoolSize: 2,
       retryWrites: true,
       w: 'majority',
-      tls: true, // Enable TLS for MongoDB Atlas
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false
+      // Additional options for Render deployment
+      directConnection: false,
+      family: 4, // Use IPv4 to avoid IPv6 issues
+      // Let MongoDB driver handle TLS automatically for mongodb+srv://
+      // No need to specify tls: true explicitly
     };
 
     client = new MongoClient(MONGO_URI, options);
@@ -59,6 +61,11 @@ function asTaskDoc(doc) {
   };
 }
 
+// Check if database is connected
+function isConnected() {
+  return mongoDb !== null;
+}
+
 const db = {
   async connect() {
     await connectMongo();
@@ -66,18 +73,27 @@ const db = {
 
   // Users
   async getUserByUsername(username) {
+    if (!isConnected()) {
+      throw new Error('Database not connected');
+    }
     const u = await mongoDb.collection('users').findOne({ username });
     if (!u) return null;
     return { id: String(u._id), username: u.username, password_hash: u.password_hash };
   },
 
   async createUser(username, password_hash) {
+    if (!isConnected()) {
+      throw new Error('Database not connected');
+    }
     const r = await mongoDb.collection('users').insertOne({ username, password_hash });
     return { id: String(r.insertedId), username, password_hash };
   },
 
   async getUserById(id) {
     try {
+      if (!isConnected()) {
+        return null;
+      }
       const _id = new ObjectId(id);
       const u = await mongoDb.collection('users').findOne({ _id });
       if (!u) return null;
@@ -90,6 +106,9 @@ const db = {
   // Tasks
   async listTasksByUser(user_id) {
     try {
+      if (!isConnected()) {
+        return [];
+      }
       const uid = new ObjectId(user_id);
       const cursor = mongoDb.collection('tasks').find({ user_id: uid }).sort({ created_at: -1 });
       const docs = await cursor.toArray();
@@ -100,6 +119,9 @@ const db = {
   },
 
   async createTask({ title, description, user_id }) {
+    if (!isConnected()) {
+      throw new Error('Database not connected');
+    }
     const now = new Date().toISOString();
     let uid;
     try {
@@ -122,6 +144,9 @@ const db = {
 
   async getTaskByIdAndUser(id, user_id) {
     try {
+      if (!isConnected()) {
+        return null;
+      }
       const _id = new ObjectId(id);
       const uid = new ObjectId(user_id);
       const t = await mongoDb.collection('tasks').findOne({ _id, user_id: uid });
@@ -133,6 +158,9 @@ const db = {
 
   async updateTask(id, updates) {
     try {
+      if (!isConnected()) {
+        return null;
+      }
       const _id = new ObjectId(id);
       updates.updated_at = new Date().toISOString();
       await mongoDb.collection('tasks').updateOne({ _id }, { $set: updates });
@@ -145,6 +173,9 @@ const db = {
 
   async deleteTask(id) {
     try {
+      if (!isConnected()) {
+        return false;
+      }
       const _id = new ObjectId(id);
       const r = await mongoDb.collection('tasks').deleteOne({ _id });
       return r.deletedCount === 1;
@@ -155,7 +186,10 @@ const db = {
 
   // Lifecycle
   _close: closeMongo,
-  _mongoDb: () => mongoDb
+  _mongoDb: () => mongoDb,
+  
+  // Check connection status
+  _isConnected: isConnected
 };
 
 module.exports = db;
