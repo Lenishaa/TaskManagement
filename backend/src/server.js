@@ -27,6 +27,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', tasksRoutes);
 
+// Health check endpoint for Render
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
 io.on('connection', (socket) => {
   // Get token from handshake auth
   const token = socket.handshake.auth?.token;
@@ -40,13 +45,20 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 4000;
 
-(async function start(){
+// Start server immediately, then connect to database
+server.listen(PORT, () => {
+  console.log(`✅ Server listening on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Connect to database in background
+(async function connectDB(){
   try {
     await db.connect();
-    server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+    console.log('✅ Database connected successfully');
   } catch (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
+    console.error('⚠️  Database connection failed:', err.message);
+    console.log('⚠️  Server is running but database is not connected');
   }
 })();
 
