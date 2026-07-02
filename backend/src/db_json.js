@@ -10,11 +10,36 @@ let client = null;
 let mongoDb = null;
 
 async function connectMongo() {
-  client = new MongoClient(MONGO_URI);
-  await client.connect();
-  mongoDb = client.db();
-  console.log('✅ Connected to MongoDB');
-  return mongoDb;
+  try {
+    // MongoDB connection options for better compatibility with MongoDB Atlas
+    const options = {
+      serverSelectionTimeoutMS: 30000, // 30 seconds
+      socketTimeoutMS: 45000, // 45 seconds
+      connectTimeoutMS: 30000, // 30 seconds
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      retryWrites: true,
+      w: 'majority',
+      tls: true, // Enable TLS for MongoDB Atlas
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false
+    };
+
+    client = new MongoClient(MONGO_URI, options);
+    
+    console.log('🔄 Connecting to MongoDB...');
+    await client.connect();
+    
+    // Test the connection
+    await client.db().admin().ping();
+    
+    mongoDb = client.db();
+    console.log('✅ Connected to MongoDB successfully');
+    return mongoDb;
+  } catch (error) {
+    console.error('❌ MongoDB connection error:', error.message);
+    throw error;
+  }
 }
 
 function closeMongo() {
